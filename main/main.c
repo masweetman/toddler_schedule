@@ -11,10 +11,13 @@
 static const char *TAG = "toddler_schedule";
 
 // ─── App State ────────────────────────────────────────────────────────────
-static int  current_step        = 0;
-static bool celebration_showing = false;
+static int                    current_step        = 0;
+static bool                   celebration_showing = false;
+static const schedule_step_t *active_steps        = NULL;
+static int                    active_num_steps    = 0;
 
 // ─── LVGL Object Handles ──────────────────────────────────────────────────
+static lv_obj_t *scr_home;
 static lv_obj_t *scr_main;
 static lv_obj_t *img_step;
 static lv_obj_t *lbl_step_name;
@@ -62,23 +65,23 @@ static void show_celebration(void)
 // ─── Refresh the main screen for the current step ────────────────────────
 static void refresh_screen(void)
 {
-    if (current_step >= NUM_STEPS) {
+    if (current_step >= active_num_steps) {
         show_celebration();
         return;
     }
 
-    const schedule_step_t *step = &STEPS[current_step];
+    const schedule_step_t *step = &active_steps[current_step];
 
     lv_img_set_src(img_step, step->image);
     lv_obj_align(img_step, LV_ALIGN_CENTER, 0, -30);
     lv_label_set_text(lbl_step_name, step->label);
 
-    int progress = (current_step * 100) / NUM_STEPS;
+    int progress = (current_step * 100) / active_num_steps;
     lv_bar_set_value(bar_progress, progress, LV_ANIM_ON);
 
     char prog_str[32];
     snprintf(prog_str, sizeof(prog_str), "Step %d of %d",
-             current_step + 1, NUM_STEPS);
+             current_step + 1, active_num_steps);
     lv_label_set_text(lbl_progress, prog_str);
 
     lv_obj_add_flag(lbl_cheer, LV_OBJ_FLAG_HIDDEN);
@@ -97,14 +100,13 @@ static void on_screen_touched(lv_event_t *e)
     if (celebration_showing) {
         celebration_showing = false;
         current_step = 0;
-        lv_scr_load(scr_main);
-        refresh_screen();
+        lv_scr_load(scr_home);
         return;
     }
 
-    if (current_step >= NUM_STEPS) return;
+    if (current_step >= active_num_steps) return;
 
-    const schedule_step_t *step = &STEPS[current_step];
+    const schedule_step_t *step = &active_steps[current_step];
     lv_label_set_text(lbl_cheer, step->cheer);
     lv_obj_clear_flag(lbl_cheer, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(lbl_tap_hint, LV_OBJ_FLAG_HIDDEN);
@@ -115,9 +117,80 @@ static void on_screen_touched(lv_event_t *e)
     lv_timer_create(advance_step_cb, 1500, NULL);
 }
 
+// ─── Home screen button callbacks ────────────────────────────────────────
+static void on_morning_pressed(lv_event_t *e)
+{
+    active_steps     = MORNING_STEPS;
+    active_num_steps = NUM_MORNING_STEPS;
+    current_step     = 0;
+    lv_scr_load(scr_main);
+    refresh_screen();
+}
+
+static void on_evening_pressed(lv_event_t *e)
+{
+    active_steps     = EVENING_STEPS;
+    active_num_steps = NUM_EVENING_STEPS;
+    current_step     = 0;
+    lv_scr_load(scr_main);
+    refresh_screen();
+}
+
 // ─── Build all UI elements ────────────────────────────────────────────────
 static void build_ui(void)
 {
+    // ── Home screen ──────────────────────────────────────────
+    scr_home = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(scr_home, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_pad_all(scr_home, 0, 0);
+    lv_obj_clear_flag(scr_home, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Morning panel (left half)
+    lv_obj_t *btn_morning = lv_obj_create(scr_home);
+    lv_obj_set_size(btn_morning, 160, 240);
+    lv_obj_set_pos(btn_morning, 0, 0);
+    lv_obj_set_style_bg_color(btn_morning, lv_color_hex(0xE8A020), 0);
+    lv_obj_set_style_radius(btn_morning, 0, 0);
+    lv_obj_set_style_border_width(btn_morning, 0, 0);
+    lv_obj_set_style_pad_all(btn_morning, 0, 0);
+    lv_obj_clear_flag(btn_morning, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(btn_morning, on_morning_pressed, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *lbl_morning_icon = lv_label_create(btn_morning);
+    lv_label_set_text(lbl_morning_icon, LV_SYMBOL_CHARGE);
+    lv_obj_set_style_text_font(lbl_morning_icon, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(lbl_morning_icon, lv_color_hex(0x1A1A1A), 0);
+    lv_obj_align(lbl_morning_icon, LV_ALIGN_CENTER, 0, -20);
+
+    lv_obj_t *lbl_morning_txt = lv_label_create(btn_morning);
+    lv_label_set_text(lbl_morning_txt, "Morning");
+    lv_obj_set_style_text_font(lbl_morning_txt, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(lbl_morning_txt, lv_color_hex(0x1A1A1A), 0);
+    lv_obj_align(lbl_morning_txt, LV_ALIGN_CENTER, 0, 20);
+
+    // Bedtime panel (right half)
+    lv_obj_t *btn_evening = lv_obj_create(scr_home);
+    lv_obj_set_size(btn_evening, 160, 240);
+    lv_obj_set_pos(btn_evening, 160, 0);
+    lv_obj_set_style_bg_color(btn_evening, lv_color_hex(0x1A2050), 0);
+    lv_obj_set_style_radius(btn_evening, 0, 0);
+    lv_obj_set_style_border_width(btn_evening, 0, 0);
+    lv_obj_set_style_pad_all(btn_evening, 0, 0);
+    lv_obj_clear_flag(btn_evening, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(btn_evening, on_evening_pressed, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *lbl_evening_icon = lv_label_create(btn_evening);
+    lv_label_set_text(lbl_evening_icon, LV_SYMBOL_BELL);
+    lv_obj_set_style_text_font(lbl_evening_icon, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(lbl_evening_icon, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(lbl_evening_icon, LV_ALIGN_CENTER, 0, -20);
+
+    lv_obj_t *lbl_evening_txt = lv_label_create(btn_evening);
+    lv_label_set_text(lbl_evening_txt, "Bedtime");
+    lv_obj_set_style_text_font(lbl_evening_txt, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(lbl_evening_txt, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(lbl_evening_txt, LV_ALIGN_CENTER, 0, 20);
+
     // ── Main screen ──────────────────────────────────────────
     scr_main = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(scr_main, lv_color_hex(0x000000), 0);
@@ -189,9 +262,8 @@ static void build_ui(void)
     lv_obj_set_style_text_color(lbl_restart, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(lbl_restart, LV_ALIGN_BOTTOM_MID, 0, -15);
 
-    // ── Load first screen ────────────────────────────────────
-    lv_scr_load(scr_main);
-    refresh_screen();
+    // ── Load home screen ─────────────────────────────────────
+    lv_scr_load(scr_home);
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────
