@@ -19,16 +19,16 @@ static const schedule_step_t STEPS[NUM_STEPS] = {
     {
         .label = "Brush Teeth",
         .image = &brush_teeth,
-        .cheer = "Great brushing! ✨"
+        .cheer = "Great brushing! " LV_SYMBOL_CHARGE
     },
     {
         .label = "Put on PJs",
         .image = &pajamas,
-        .cheer  = "PJs on! So cozy! 🌙"
+        .cheer  = "PJs on! So cozy!"
     },
     {
         .label = "Story Time",
         .image = &story_time,
-        .cheer  = "All done! Goodnight! ⭐"
+        .cheer  = "All done! Goodnight!"
     },
 };
