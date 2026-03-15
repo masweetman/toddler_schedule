@@ -1,0 +1,6 @@
+dependencies:
+  idf: ">=5.0.0"
+  espressif/esp-box-3:
+    version: ">=1.2.0"
+  lvgl/lvgl:
+    version: ">=8.3.6,<9.0.0"
