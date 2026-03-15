@@ -13,6 +13,7 @@ static const char *TAG = "toddler_schedule";
 // ─── App State ────────────────────────────────────────────────────────────
 static int                    current_step        = 0;
 static bool                   celebration_showing = false;
+static bool                   step_locked         = false;
 static const schedule_step_t *active_steps        = NULL;
 static int                    active_num_steps    = 0;
 
@@ -91,12 +92,15 @@ static void refresh_screen(void)
 // ─── Touch callback ───────────────────────────────────────────────────────
 static void advance_step_cb(lv_timer_t *t)
 {
+    step_locked = false;
     refresh_screen();
     lv_timer_del(t);
 }
 
 static void on_screen_touched(lv_event_t *e)
 {
+    if (step_locked) return;
+
     if (celebration_showing) {
         celebration_showing = false;
         current_step = 0;
@@ -111,10 +115,11 @@ static void on_screen_touched(lv_event_t *e)
     lv_obj_clear_flag(lbl_cheer, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(lbl_tap_hint, LV_OBJ_FLAG_HIDDEN);
 
+    step_locked = true;
     play_tada();
     current_step++;
 
-    lv_timer_create(advance_step_cb, 1500, NULL);
+    lv_timer_create(advance_step_cb, 5000, NULL);
 }
 
 // ─── Home screen button callbacks ────────────────────────────────────────
@@ -123,6 +128,7 @@ static void on_morning_pressed(lv_event_t *e)
     active_steps     = MORNING_STEPS;
     active_num_steps = NUM_MORNING_STEPS;
     current_step     = 0;
+    step_locked      = false;
     lv_scr_load(scr_main);
     refresh_screen();
 }
@@ -132,6 +138,7 @@ static void on_evening_pressed(lv_event_t *e)
     active_steps     = EVENING_STEPS;
     active_num_steps = NUM_EVENING_STEPS;
     current_step     = 0;
+    step_locked      = false;
     lv_scr_load(scr_main);
     refresh_screen();
 }
